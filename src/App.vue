@@ -118,7 +118,7 @@
         <hr class="w-full border-t border-gray-600 my-4" />
         <dl class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
           <div
-            v-for="coin in filteredTickers()"
+            v-for="coin in filteredTickers"
             :key="coin.id"
             :class="{ 'border-4': sel === coin }"
             class="
@@ -187,7 +187,7 @@
         </h3>
         <div class="flex items-end border-gray-600 border-b border-l h-64">
           <div
-            v-for="(bar, idx) in normalizeGraph()"
+            v-for="(bar, idx) in normalizedGraph"
             :key="idx"
             :style="{ height: `${bar}%` }"
             class="bg-purple-800 border w-10"
@@ -241,7 +241,6 @@ export default {
       symbols: [],
       page: 1,
       filter: "",
-      hasNextPage: false,
     };
   },
 
@@ -269,18 +268,35 @@ export default {
   },
 
   computed: {
-    filteredTickers() {
-      const start = 6 * (this.page - 1);
-      const end = 6 * this.page;
+    startIndex() {
+      return (this.page - 1) * 6;
+    },
 
-      const filteredTickets = this.coins.filter((coin) =>
+    endIndex() {
+      return this.page * 6;
+    },
+
+    filteredTickers() {
+      return this.coins.filter((coin) =>
         coin.name.includes(this.filter.toUpperCase())
       );
+    },
 
-      this.hasNextPage = filteredTickets.length > end;
+    paginatedTickers() {
+      return this.filteredTickers.slice(this.startIndex, this.endIndex);
+    },
 
-      return filteredTickets.slice(start, end);
-    }
+    hasNextPage() {
+      return this.filteredTickers.length > this.endIndex;
+    },
+
+    normalizedGraph() {
+      const maxValue = Math.max(...this.graph);
+      const minValue = Math.min(...this.graph);
+      return this.graph.map(
+        (price) => 5 + ((price - minValue) * 95) / (maxValue - minValue)
+      );
+    },
   },
 
   mounted() {
@@ -347,13 +363,6 @@ export default {
       }
 
       localStorage.setItem("cryptonomicon", JSON.stringify(this.coins));
-    },
-    normalizeGraph() {
-      const maxValue = Math.max(...this.graph);
-      const minValue = Math.min(...this.graph);
-      return this.graph.map(
-        (price) => 5 + ((price - minValue) * 95) / (maxValue - minValue)
-      );
     },
     searchCoin() {
       this.symbols = [];
