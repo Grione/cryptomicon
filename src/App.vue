@@ -112,15 +112,70 @@
         <hr class="w-full border-t border-gray-600 my-4" />
         <div>Фильтр <input v-model="filter" /></div>
         <div>
-          <button v-if="page > 1" @click="page = page - 1">Назад</button>
-          <button v-if="hasNextPage" @click="page = page + 1">Вперёд</button>
+          <button
+            v-if="page > 1"
+            @click="page = page - 1"
+            class="
+              my-4
+              inline-flex
+              items-center
+              py-2
+              px-4
+              border border-transparent
+              shadow-sm
+              text-sm
+              leading-4
+              font-medium
+              rounded-full
+              text-white
+              bg-gray-600
+              hover:bg-gray-700
+              transition-colors
+              duration-300
+              focus:outline-none
+              focus:ring-2
+              focus:ring-offset-2
+              focus:ring-gray-500
+            "
+          >
+            Назад
+          </button>
+          <button
+            v-if="hasNextPage"
+            @click="page = page + 1"
+            class="
+              my-4
+              inline-flex
+              items-center
+              py-2
+              px-4
+              border border-transparent
+              shadow-sm
+              text-sm
+              leading-4
+              font-medium
+              rounded-full
+              text-white
+              bg-gray-600
+              hover:bg-gray-700
+              transition-colors
+              duration-300
+              focus:outline-none
+              focus:ring-2
+              focus:ring-offset-2
+              focus:ring-gray-500
+            "
+          >
+            Вперёд
+          </button>
         </div>
         <hr class="w-full border-t border-gray-600 my-4" />
         <dl class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-3">
           <div
-            v-for="coin in filteredTickers"
+            v-for="coin in paginatedTickers"
             :key="coin.id"
-            :class="{ 'border-4': sel === coin }"
+            @click="select(coin)"
+            :class="{ 'border-4': selectedTicker === coin }"
             class="
               bg-white
               overflow-hidden
@@ -130,13 +185,7 @@
               cursor-pointer
             "
           >
-            <div
-              @click="
-                sel = coin;
-                graph = [];
-              "
-              class="px-4 py-5 sm:p-6 text-center"
-            >
+            <div class="px-4 py-5 sm:p-6 text-center">
               <dt class="text-sm font-medium text-gray-500 truncate">
                 {{ coin.name }} - USD
               </dt>
@@ -181,9 +230,9 @@
         </dl>
         <hr class="w-full border-t border-gray-600 my-4" />
       </template>
-      <section class="relative" v-if="sel">
+      <section class="relative" v-if="selectedTicker">
         <h3 class="text-lg leading-6 font-medium text-gray-900 my-8">
-          {{ sel.name }} - USD
+          {{ selectedTicker.name }} - USD
         </h3>
         <div class="flex items-end border-gray-600 border-b border-l h-64">
           <div
@@ -195,7 +244,7 @@
         </div>
         <button
           @click="
-            sel = null;
+            selectedTicker = null;
             graph = [];
           "
           type="button"
@@ -234,7 +283,7 @@ export default {
     return {
       ticker: "",
       coins: [],
-      sel: null,
+      selectedTicker: null,
       graph: [],
       error: false,
       allCoins: [],
@@ -293,9 +342,20 @@ export default {
     normalizedGraph() {
       const maxValue = Math.max(...this.graph);
       const minValue = Math.min(...this.graph);
+
+      if (maxValue === minValue) {
+        return this.graph.map(() => 50);
+      }
       return this.graph.map(
         (price) => 5 + ((price - minValue) * 95) / (maxValue - minValue)
       );
+    },
+
+    pageStateOptions() {
+      return {
+        filter: this.filter,
+        page: this.page
+      }
     },
   },
 
@@ -312,6 +372,9 @@ export default {
   },
 
   methods: {
+    select(coin) {
+      this.selectedTicker = coin;
+    },
     updateTicker(tickerName) {
       setInterval(async () => {
         const f = await fetch(
@@ -328,7 +391,10 @@ export default {
             data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2);
         }
 
-        if (this.sel && this.coins[currentTicker].name == this.sel.name) {
+        if (
+          this.selectedTicker &&
+          this.coins[currentTicker].name == this.selectedTicker.name
+        ) {
           this.graph.push(data.USD);
         }
       }, 3000);
@@ -352,14 +418,14 @@ export default {
       this.coins.push(coin);
       this.filter = "";
 
-      localStorage.setItem("cryptonomicon", JSON.stringify(this.coins));
+      
 
       this.updateTicker(coin.name);
     },
     remove(coin) {
       this.coins = this.coins.filter((el) => el.id != coin.id);
-      if (this.sel == coin) {
-        this.sel = null;
+      if (this.selectedTicker == coin) {
+        this.selectedTicker = null;
       }
 
       localStorage.setItem("cryptonomicon", JSON.stringify(this.coins));
@@ -379,20 +445,28 @@ export default {
     },
   },
   watch: {
+    selectedTicker() {
+      this.graph = [];
+    },
+
+    coins() {
+      localStorage.setItem("cryptonomicon", JSON.stringify(this.coins));
+    },
+
+    paginatedTickers() {
+      if (this.paginatedTickers.length === 0 && this.page > 1) {
+        this.page -= 1;
+      }
+    },
+
     filter() {
       this.page = 1;
-
-      window.history.pushState(
-        null,
-        document.title,
-        `${window.location.origin}?filter=${this.filter}&page=${this.page}`
-      );
     },
-    page() {
+    pageStateOptions(v) {
       window.history.pushState(
         null,
         document.title,
-        `${window.location.origin}?filter=${this.filter}&page=${this.page}`
+        `${window.location.origin}?filter=${v.filter}&page=${v.page}`
       );
     },
   },
