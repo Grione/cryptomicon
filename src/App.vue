@@ -237,12 +237,15 @@
         <h3 class="text-lg leading-6 font-medium text-gray-900 my-8">
           {{ selectedTicker.name }} - USD
         </h3>
-        <div class="flex items-end border-gray-600 border-b border-l h-64">
+        <div
+          class="flex items-end border-gray-600 border-b border-l h-64"
+          ref="graph"
+        >
           <div
             v-for="(bar, idx) in normalizedGraph"
             :key="idx"
-            :style="{ height: `${bar}%` }"
-            class="bg-purple-800 border w-10"
+            :style="{ height: `${bar}%`, width: `${graphElementWidth}px` }"
+            class="bg-purple-800 border"
           ></div>
         </div>
         <button
@@ -295,6 +298,8 @@ export default {
       symbols: [],
       page: 1,
       filter: "",
+      graphElements: 1,
+      graphElementWidth: 40,
     };
   },
 
@@ -377,15 +382,31 @@ export default {
       .catch((error) => {
         alert(error);
       });
+
+    window.addEventListener("resize", this.getGraphElements);
+  },
+
+  beforeUnmount() {
+    window.removeEventListener("resize", this.getGraphElements);
   },
 
   methods: {
+    getGraphElements() {
+      if (!this.$refs.graph) {
+        return;
+      }
+      this.graphElements =
+        this.$refs.graph.clientWidth / this.graphElementWidth;
+    },
     updateTicker(tickerName, price, type) {
       this.tickers
         .filter((t) => t.name === tickerName)
         .forEach((t) => {
           if (t === this.selectedTicker) {
             this.graph.push(price);
+            while (this.graph.length > this.graphElements) {
+              this.graph.shift();
+            }
           }
           t.price = price;
           t.type = type;
@@ -394,6 +415,7 @@ export default {
 
     select(coin) {
       this.selectedTicker = coin;
+      this.$nextTick(this.getGraphElements)
     },
 
     formatPrice(price) {
@@ -466,8 +488,7 @@ export default {
             JSON.stringify(this.tickers) !==
             localStorage.getItem("cryptonomicon")
           ) {
-            console.log("update");
-            this.tickers = JSON.parse(localStorage.getItem("cryptonomicon"))
+            this.tickers = JSON.parse(localStorage.getItem("cryptonomicon"));
           }
         });
       },
